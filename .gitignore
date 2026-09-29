@@ -1,0 +1,31 @@
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+venv/
+env/
+ENV/
+
+# Node & Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Uploads & Model Weights
+backend/uploads/*.png
+backend/uploads/*.jpg
+backend/uploads/*.jpeg
+backend/uploads/*.webp
+!backend/uploads/.gitkeep
+ml/models/*.pt
+ml/models/*.pth
+ml/models/*.onnx
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
