@@ -11,12 +11,16 @@ import {
 
 export const IS_DEMO_MODE = false; // Always prefer live FastAPI backend!
 
+const API_BASE = import.meta.env.VITE_API_URL
+  ? `${import.meta.env.VITE_API_URL}/api`
+  : '/api';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 20000,
+  timeout: 30000,
 });
 
 api.interceptors.request.use(
