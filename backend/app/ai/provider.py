@@ -221,8 +221,12 @@ class GeminiAIProvider(AIProvider):
         if not self.api_key:
             return self.fallback.generate_chat_response(user_message, scan_context, language)
 
-        import google.generativeai as genai
-        genai.configure(api_key=self.api_key)
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=self.api_key)
+        except Exception as e:
+            print(f"[AI-PROVIDER] Failed to load google.generativeai: {e}. Falling back to dynamic provider.")
+            return self.fallback.generate_chat_response(user_message, scan_context, language)
 
         rag = get_rag_service()
         retrieved = rag.retrieve(user_message + " " + (scan_context.get("disease", "") if scan_context else ""), top_k=2)
@@ -289,8 +293,12 @@ CRITICAL RULES:
         if not self.api_key:
             return self.fallback.generate_health_report(structured_ml_results, weather_data, rag_context)
 
-        import google.generativeai as genai
-        genai.configure(api_key=self.api_key)
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=self.api_key)
+        except Exception as e:
+            print(f"[AI-PROVIDER] Failed to load google.generativeai: {e}. Falling back to dynamic provider.")
+            return self.fallback.generate_health_report(structured_ml_results, weather_data, rag_context)
 
         plant = structured_ml_results.get("plant", "Plant Specimen")
         disease = structured_ml_results.get("disease", "Unknown Condition")
