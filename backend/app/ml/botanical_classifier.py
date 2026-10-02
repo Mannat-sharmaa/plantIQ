@@ -28,27 +28,36 @@ def analyze_extended_botanical_crop(image_path: str) -> Optional[Dict[str, Any]]
         api_key = os.getenv("GEMINI_API_KEY", "")
         if api_key:
             genai.configure(api_key=api_key)
-            # Use gemini-3.1-flash-lite which is ultra-fast and has verified available quota
-            model = genai.GenerativeModel("gemini-3.1-flash-lite")
             pil_img = Image.open(image_path)
-            
             prompt = """You are an expert botanical taxonomist and plant pathologist.
 Analyze this plant image carefully.
 Identify the exact plant species and foliar health condition shown in the image.
 
 Output ONLY a valid JSON object matching this schema (no markdown, no extra text):
 {
-  "plant": "Common plant name (e.g. Rose, Guava, Mango, Tomato, Potato, Neem, Apple, Corn)",
-  "scientific_name": "Botanical Latin name (e.g. Rosa, Psidium guajava, Mangifera indica)",
+  "plant": "Common plant name (e.g. Aloe vera, Guava, Rose, Mango, Tomato, Potato, Neem, Apple, Corn)",
+  "scientific_name": "Botanical Latin name (e.g. Aloe vera, Psidium guajava, Rosa, Mangifera indica)",
   "disease": "Healthy Foliage or specific disease name (e.g. Black Spot, Anthracnose, Powdery Mildew)",
   "pathogen": "Specific pathogen name or 'None (Physiologically healthy)'",
   "is_healthy": true,
   "confidence": 0.95,
   "symptoms": ["Specific visual observation from the image", "leaf texture or margin feature"]
 }"""
+            candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+            raw_text = None
+            for m_name in candidate_models:
+                try:
+                    model = genai.GenerativeModel(m_name)
+                    response = model.generate_content([prompt, pil_img])
+                    if response and response.text:
+                        raw_text = response.text.strip()
+                        break
+                except Exception as m_err:
+                    print(f"[VISION-AI] {m_name} attempt failed: {m_err}")
+                    continue
 
-            response = model.generate_content([prompt, pil_img])
-            raw_text = response.text.strip()
+            if not raw_text:
+                raise RuntimeError("All Gemini vision models failed")
             
             if "```json" in raw_text:
                 raw_text = raw_text.split("```json")[1].split("```")[0].strip()

@@ -89,29 +89,60 @@ def run_model_inference(image_path: str) -> Dict[str, Any]:
         try:
             from app.services.plantnet_service import query_plantnet_identification
             plantnet_res = query_plantnet_identification(image_path)
-            if plantnet_res:
-                print(f"[SCAN] Pl@ntNet identified: {plantnet_res['plant']} ({plantnet_res['scientific_name']}) — {plantnet_res['disease']}")
+            if plantnet_res and plantnet_res.get("identified"):
+                p_name = plantnet_res.get("plant") or plantnet_res.get("common_name", "Plant Specimen")
+                sci_name = plantnet_res.get("scientific_name", p_name)
+                fam = plantnet_res.get("family", "")
+                p_score = float(plantnet_res.get("score", 0.85))
+                print(f"[SCAN] Pl@ntNet identified: {p_name} ({sci_name}) - Family: {fam} (Score: {p_score:.4f})")
+
+                # Format candidate species as top predictions
+                raw_cands = plantnet_res.get("candidate_species", [])
+                formatted_top_preds = []
+                for c in raw_cands:
+                    formatted_top_preds.append({
+                        "label": c.get("label") or f"{c.get('common_name')} ({c.get('scientific_name')})",
+                        "confidence": float(c.get("score", 0.0))
+                    })
+                if not formatted_top_preds:
+                    formatted_top_preds = [
+                        {"label": f"{p_name} ({sci_name})", "confidence": p_score}
+                    ]
+
+                # Check if identified species is one of the supported disease crops
+                from app.ml.labels import SUPPORTED_PLANTS
+                is_supported_crop = any(sc.lower() in p_name.lower() or p_name.lower() in sc.lower() for sc in SUPPORTED_PLANTS)
+
+                if is_supported_crop and primary_confidence >= 0.20:
+                    diag_disease = primary_disease
+                    diag_pathogen = primary_pathogen
+                    is_h = primary_healthy
+                else:
+                    diag_disease = "Healthy Foliage (No pathogen catalogued)"
+                    diag_pathogen = f"Botanical Family: {fam}" if fam else "Asymptomatic Foliar Specimen"
+                    is_h = True
+
                 return {
                     "status": "success",
-                    "message": f"Botanical identification completed: {plantnet_res['plant']}.",
-                    "plant": plantnet_res["plant"],
-                    "scientific_name": plantnet_res["scientific_name"],
-                    "disease": plantnet_res["disease"],
-                    "pathogen": plantnet_res["pathogen"],
-                    "confidence": plantnet_res["confidence"],
-                    "confidence_level": plantnet_res["confidence_level"],
-                    "top_predictions": plantnet_res["top_predictions"],
+                    "message": f"Botanical identification completed: {p_name} ({sci_name}).",
+                    "plant": p_name,
+                    "scientific_name": sci_name,
+                    "disease": diag_disease,
+                    "pathogen": diag_pathogen,
+                    "confidence": p_score,
+                    "confidence_level": "Normal" if p_score >= 0.35 else "Moderate",
+                    "top_predictions": formatted_top_preds,
                     "is_supported": True,
-                    "is_healthy": plantnet_res["is_healthy"],
+                    "is_healthy": is_h,
                     "model_status": {
                         **model_meta,
-                        "model_name": "Pl@ntNet Botanical Vision + MobileNetV3",
-                        "inference_type": "Pl@ntNet 30,000+ Species & Foliar Health Suite",
+                        "model_name": "Pl@ntNet Global Biodiversity API (30,000+ Species)",
+                        "inference_type": "Real-Time Botanical Classification & Foliar Assessment",
                         "mode": "production"
                     }
                 }
         except Exception as p_err:
-            print(f"[SCAN] Pl@ntNet lookup bypassed: {p_err}")
+            print(f"[SCAN] Pl@ntNet lookup error: {p_err}")
 
         # Botanical morphological & visual fallback
         print(f"[SCAN] Evaluating secondary botanical morphology fallback...")
