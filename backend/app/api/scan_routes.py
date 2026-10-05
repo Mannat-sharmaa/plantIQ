@@ -48,6 +48,12 @@ def run_scan_pipeline(
     print(f"[SCAN] Image dimensions: {img_width}x{img_height}")
     print(f"[SCAN] Preprocessing completed")
 
+    # Start weather retrieval concurrently to eliminate 2-second idle wait
+    from concurrent.futures import ThreadPoolExecutor
+    executor = ThreadPoolExecutor(max_workers=2)
+    weather_provider = get_weather_provider()
+    weather_future = executor.submit(weather_provider.get_weather, latitude, longitude)
+
     # 2. Disease Classification (ML Model Decides)
     classifier = get_classifier()
     cls_result = classifier.predict(file_path)
@@ -160,8 +166,13 @@ def run_scan_pipeline(
     print(f"[SCAN] Grad-CAM: {xai_res.get('heatmap_url')}")
 
     # 6. Environmental Microclimate Context
-    weather_provider = get_weather_provider()
-    env_res = weather_provider.get_weather(latitude, longitude)
+    try:
+        env_res = weather_future.result(timeout=2.5)
+    except Exception as w_err:
+        print(f"[SCAN] Weather future timeout/error ({w_err}), falling back to direct fetch")
+        env_res = weather_provider.get_weather(latitude, longitude)
+    finally:
+        executor.shutdown(wait=False)
     print(f"[SCAN] Weather: {env_res.get('temperature_c')}°C, {env_res.get('humidity_percent')}% (source: {env_res.get('source')})")
 
     # 7. RAG Knowledge Base Retrieval (Section 10: Suppress specific advice if unsupported or low confidence)
@@ -317,6 +328,17 @@ async def upload_and_analyze_scan(
 
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
+
+    # Optimize uploaded image if dimensions exceed 1280px (dramatically accelerates inference & OpenCV)
+    try:
+        with Image.open(file_path) as up_img:
+            if max(up_img.size) > 1280:
+                up_img.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
+                if up_img.mode != "RGB":
+                    up_img = up_img.convert("RGB")
+                up_img.save(file_path, "JPEG", quality=85, optimize=True)
+    except Exception as img_opt_err:
+        print(f"[SCAN] Optional pre-resize skipped: {img_opt_err}")
 
     # Safely parse coordinate floats
     parsed_lat = None

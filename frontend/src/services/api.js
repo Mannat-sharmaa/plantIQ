@@ -20,7 +20,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 30000,
+  timeout: 90000,
 });
 
 api.interceptors.request.use(
@@ -292,6 +292,7 @@ export const scanService = {
       try {
         res = await api.post('/scan/analyze', formData, {
           headers: { 'Content-Type': undefined },
+          timeout: 120000,
           onUploadProgress: onProgress,
         });
       } catch (innerErr) {
@@ -299,6 +300,7 @@ export const scanService = {
         if (innerErr.response && innerErr.response.status === 404) {
           res = await api.post('/scan', formData, {
             headers: { 'Content-Type': undefined },
+            timeout: 120000,
             onUploadProgress: onProgress,
           });
         } else {
@@ -315,7 +317,16 @@ export const scanService = {
       return { scanId: normalized.id, status: normalized.status || 'completed', scan: normalized };
     } catch (err) {
       console.error('Scan inference failed on backend:', err);
-      const detail = err.response?.data?.detail || err.response?.data?.message || err.message || 'Model inference failed';
+      let detail = err.response?.data?.detail || err.response?.data?.message;
+      if (!detail) {
+        if (err.code === 'ECONNABORTED' || (err.message && err.message.toLowerCase().includes('timeout'))) {
+          detail = 'Cloud backend took too long to respond. The server may be waking up from sleep mode. Please try clicking Analyze Plant again.';
+        } else if (err.message && err.message.toLowerCase().includes('network error')) {
+          detail = 'Unable to reach backend server. Please check your internet connection or wait 10 seconds for the cloud server to wake up.';
+        } else {
+          detail = err.message || 'Model inference failed';
+        }
+      }
       throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
     }
   },

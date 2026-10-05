@@ -72,7 +72,8 @@ export const ScanPage = () => {
       // Redirect to the 8-step animated analysis process page (Section 15 & 17)
       navigate(`/analysis/${scanId}`);
     } catch (err) {
-      setErrorMessage(err.response?.data?.detail || 'Inference submission failed. Please verify the image file.');
+      const msg = err.message || err.response?.data?.detail || 'Inference submission failed. Please verify the image file.';
+      setErrorMessage(msg);
       setIsSubmitting(false);
     }
   };

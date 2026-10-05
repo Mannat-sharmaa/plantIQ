@@ -265,7 +265,7 @@ CRITICAL RULES:
 4. If diseased, explain the cause, symptoms, organic remedies (pruning, neem spray), and precautions.
 5. Language: Respond naturally in {language} (if user asks in Hindi/Hinglish, reply in friendly, conversational Hindi/Hinglish)."""
 
-        candidate_models = ["gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.8-flash"]
+        candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
         for m_name in candidate_models:
             try:
                 model = genai.GenerativeModel(m_name)
@@ -357,7 +357,7 @@ Output ONLY a valid JSON object matching EXACTLY this JSON structure:
 Ensure advice is tailored strictly to {plant} and {disease}. If Healthy, celebrate healthy foliage and guide proper routine maintenance.
 Return PURE RAW JSON only, no markdown codeblocks."""
 
-        candidate_models = ["gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.8-flash"]
+        candidate_models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
         for m_name in candidate_models:
             try:
                 model = genai.GenerativeModel(m_name)
